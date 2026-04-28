@@ -13,6 +13,8 @@
 - Added CSV-aware import logging.
 - Added UTF-8 BOM support for CSV import.
 - Added automatic CSV delimiter detection for comma, semicolon, and tab-delimited files.
+- Closing tool forms with main form
+- Safer close behavior during import/export
 
 ### Changed
 

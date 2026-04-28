@@ -7,8 +7,8 @@ Begin VB.Form frmImportExcelToSql
    BorderStyle     =   1  'Fixed Single
    Caption         =   "Import Excel Data To Sql"
    ClientHeight    =   9015
-   ClientLeft      =   16665
-   ClientTop       =   8175
+   ClientLeft      =   13020
+   ClientTop       =   7635
    ClientWidth     =   14880
    BeginProperty Font 
       Name            =   "Tahoma"
@@ -603,6 +603,7 @@ Private mStagingManager As clsStagingManager
 Private mImportEngine As clsImportEngine
 Private mCancelRequested As Boolean
 Private mCsvReader As clsCsvReader
+Private mIsImporting As Boolean
 
 Private Sub cmbGridSqlColumns_Click()
     Dim SelectedSqlColumn As String
@@ -956,7 +957,7 @@ Private Sub cmdStartImport_Click()
     Dim FriendlyMessage As String
     Dim OriginalErrNumber As Long
     Dim OriginalErrDescription As String
-    
+        
     If gAppContext Is Nothing Then
         MsgBox "Application context is not initialized.", vbExclamation, APP_NAME
         Exit Sub
@@ -998,6 +999,8 @@ Private Sub cmdStartImport_Click()
     Set Options = BuildImportOptionsFromForm()
     
     mCancelRequested = False
+    mIsImporting = True
+    
     SetImportUiBusyState True
     ResetExecutionProgress
     
@@ -1151,6 +1154,7 @@ SafeExit:
     mCancelRequested = False
     SetImportUiBusyState False
     cmdStartImport.Enabled = True
+    mIsImporting = False
     Exit Sub
 
 ErrorHandler:
@@ -1194,6 +1198,7 @@ ErrorHandler:
     
     SetImportUiBusyState False
     cmdStartImport.Enabled = True
+    mIsImporting = False
     
     MsgBox FriendlyMessage & vbCrLf & vbCrLf & _
            "More details have been written to the log file.", _
@@ -1690,6 +1695,26 @@ Private Sub ApplyMappingsToGrid(ByVal Mappings As Collection)
             End If
         Next j
     Next i
+End Sub
+
+Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
+    On Error Resume Next
+    
+    If mIsImporting Then
+        If MsgBox("An import operation is currently running." & vbCrLf & vbCrLf & _
+                  "Do you want to request cancellation before closing this form?", _
+                  vbQuestion + vbYesNo, APP_NAME) = vbYes Then
+            
+            mCancelRequested = True
+            lblCurrentStep.Caption = "Cancel requested..."
+            SetGlobalStatus "Cancel requested..."
+            AppendStatusMessage "Cancel requested because the form was being closed."
+            DoEvents
+        End If
+        
+        Cancel = True
+        Exit Sub
+    End If
 End Sub
 
 Private Sub grdMapping_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)

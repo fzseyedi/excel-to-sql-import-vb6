@@ -387,7 +387,7 @@ Private Sub cmdStartExport_Click()
     On Error GoTo ErrorHandler
     
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim TotalTables As Long
     Dim CurrentTable As Long
     Dim ExportedRows As Long
@@ -584,9 +584,9 @@ Private Sub EnsureExportObjects()
     End If
 End Sub
 
-Private Function FindTableSelection(ByVal FullTableName As String) As clsExportTableSelection
+Private Function FindTableSelection(ByVal FullTableName As String) As clsExportTblSel
     Dim i As Long
-    Dim Item As clsExportTableSelection
+    Dim Item As clsExportTblSel
     
     For i = 1 To mExportSelections.Count
         Set Item = mExportSelections(i)
@@ -628,7 +628,7 @@ Private Sub LoadTablesForExport()
     On Error GoTo ErrorHandler
     
     Dim Rs As ADODB.Recordset
-    Dim Item As clsExportTableSelection
+    Dim Item As clsExportTblSel
     
     lstTables.Clear
     Set mExportSelections = New Collection
@@ -636,7 +636,7 @@ Private Sub LoadTablesForExport()
     Set Rs = mDatabaseBrowser.GetBaseTables(GetActiveConnection(), gAppContext.SelectedDatabase)
     
     Do While Not Rs.EOF
-        Set Item = New clsExportTableSelection
+        Set Item = New clsExportTblSel
         Item.SchemaName = NzString(Rs.Fields("TABLE_SCHEMA").Value)
         Item.TableName = NzString(Rs.Fields("TABLE_NAME").Value)
         Item.IsChecked = False
@@ -667,7 +667,7 @@ Private Sub ApplyDefaultSelectedTableFromContext()
     
     Dim DefaultFullName As String
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If gAppContext Is Nothing Then Exit Sub
     If Not gAppContext.HasSelectedTarget Then Exit Sub
@@ -710,7 +710,7 @@ End Sub
 Private Sub LoadFieldsForSelectedTable()
     On Error GoTo ErrorHandler
     
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim i As Long
     Dim OldSuppress As Boolean
     
@@ -753,7 +753,7 @@ ErrorHandler:
 End Sub
 
 Private Sub RestoreFieldChecksForCurrentTable()
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim i As Long
     Dim FieldName As String
     
@@ -770,7 +770,7 @@ Private Sub RestoreFieldChecksForCurrentTable()
 End Sub
 
 Private Sub SaveFieldChecksForCurrentTable()
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If mSuppressUiEvents Then Exit Sub
     If lstTables.ListIndex < 0 Then Exit Sub
@@ -780,6 +780,26 @@ Private Sub SaveFieldChecksForCurrentTable()
     If Selection Is Nothing Then Exit Sub
     
     Selection.RebuildSelectedFieldsFromListBox lstFields
+End Sub
+
+Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
+    On Error Resume Next
+    
+    If mIsExporting Then
+        If MsgBox("An export operation is currently running." & vbCrLf & vbCrLf & _
+                  "Do you want to request cancellation before closing this form?", _
+                  vbQuestion + vbYesNo, APP_NAME) = vbYes Then
+            
+            mCancelRequested = True
+            cmdCancelExport.Enabled = False
+            lblCurrentStep.Caption = "Cancel requested..."
+            AppendExportStatus "Cancel requested because the form was being closed."
+            DoEvents
+        End If
+        
+        Cancel = True
+        Exit Sub
+    End If
 End Sub
 
 Private Sub lstFields_MouseDown(Button As Integer, Shift As Integer, X As Single, Y As Single)
@@ -797,7 +817,7 @@ Private Sub lstTables_MouseDown(Button As Integer, Shift As Integer, X As Single
 End Sub
 
 Private Sub lstTables_Click()
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If mSuppressUiEvents Then Exit Sub
     If lstTables.ListIndex < 0 Then Exit Sub
@@ -832,7 +852,7 @@ Private Sub lstFields_ItemCheck(Item As Integer)
 End Sub
 
 Private Sub SaveTableCheckState(ByVal ItemIndex As Integer)
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim FullTableName As String
     
     If mSuppressUiEvents Then Exit Sub
@@ -859,7 +879,7 @@ End Sub
 
 Private Function HasCheckedTables() As Boolean
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If mExportSelections Is Nothing Then Exit Function
     
@@ -904,7 +924,7 @@ Private Function ValidateExportInputs() As Boolean
     On Error GoTo ErrorHandler
     
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim HasAnyTable As Boolean
     
     ValidateExportInputs = False
@@ -979,7 +999,7 @@ ErrorHandler:
            Err.Number & " - " & Err.Description, vbExclamation, APP_NAME
 End Function
 
-Private Sub LoadFieldsForTableSelection(ByVal Selection As clsExportTableSelection)
+Private Sub LoadFieldsForTableSelection(ByVal Selection As clsExportTblSel)
     On Error GoTo ErrorHandler
     
     Dim Columns As Collection
@@ -1016,7 +1036,7 @@ Private Sub txtOutputFolder_Change()
     RefreshExportUiState
 End Sub
 
-Private Function BuildCsvOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTableSelection) As String
+Private Function BuildCsvOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTblSel) As String
     Dim FolderPath As String
     Dim FileName As String
     
@@ -1108,7 +1128,7 @@ End Sub
 
 Private Sub SelectAllTables()
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     For i = 0 To lstTables.ListCount - 1
         lstTables.Selected(i) = True
@@ -1134,7 +1154,7 @@ End Sub
 
 Private Sub SelectNoTables()
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     For i = 0 To lstTables.ListCount - 1
         lstTables.Selected(i) = False
@@ -1152,7 +1172,7 @@ End Sub
 
 Private Sub SelectAllFields()
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If lstFields.ListCount = 0 Then Exit Sub
     
@@ -1169,7 +1189,7 @@ End Sub
 
 Private Sub SelectNoFields()
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If lstFields.ListCount = 0 Then Exit Sub
     
@@ -1193,7 +1213,7 @@ Private Sub FilterTablesList()
     On Error GoTo ErrorHandler
     
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     Dim SearchText As String
     Dim CurrentFullName As String
     Dim NewIndex As Long
@@ -1267,7 +1287,7 @@ Private Sub SelectTableInListIfExists(ByVal FullTableName As String)
     End If
 End Sub
 
-Private Function GetCurrentTableSelection() As clsExportTableSelection
+Private Function GetCurrentTableSelection() As clsExportTblSel
     If lstTables.ListIndex < 0 Then
         Set GetCurrentTableSelection = Nothing
         Exit Function
@@ -1312,7 +1332,7 @@ Private Sub CheckForExportCancel()
     End If
 End Sub
 
-Private Function BuildSelectColumnList(ByVal Selection As clsExportTableSelection) As String
+Private Function BuildSelectColumnList(ByVal Selection As clsExportTblSel) As String
     Dim i As Long
     Dim Result As String
     
@@ -1329,7 +1349,7 @@ Private Function BuildSelectColumnList(ByVal Selection As clsExportTableSelectio
     BuildSelectColumnList = Result
 End Function
 
-Private Function BuildExportSql(ByVal Selection As clsExportTableSelection) As String
+Private Function BuildExportSql(ByVal Selection As clsExportTblSel) As String
     Dim SafeDatabaseName As String
     Dim ColumnList As String
     
@@ -1368,7 +1388,7 @@ End Function
 Private Function WriteRecordsetToCsv( _
     ByVal Rs As ADODB.Recordset, _
     ByVal FilePath As String, _
-    ByVal Selection As clsExportTableSelection) As Long
+    ByVal Selection As clsExportTblSel) As Long
     
     On Error GoTo ErrorHandler
     
@@ -1426,7 +1446,7 @@ ErrorHandler:
               "Failed to write CSV file [" & FilePath & "]. " & Err.Description
 End Function
 
-Private Function ExportTableToCsv(ByVal Selection As clsExportTableSelection, ByVal OutputFolder As String) As Long
+Private Function ExportTableToCsv(ByVal Selection As clsExportTblSel, ByVal OutputFolder As String) As Long
     On Error GoTo ErrorHandler
     
     Dim Conn As ADODB.Connection
@@ -1482,7 +1502,7 @@ End Function
 
 Private Function GetCheckedTableCount() As Long
     Dim i As Long
-    Dim Selection As clsExportTableSelection
+    Dim Selection As clsExportTblSel
     
     If mExportSelections Is Nothing Then Exit Function
     
@@ -1528,7 +1548,7 @@ ErrorHandler:
     Set ExcelApp = Nothing
 End Function
 
-Private Function BuildExcelOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTableSelection) As String
+Private Function BuildExcelOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTblSel) As String
     Dim FolderPath As String
     Dim FileName As String
     
@@ -1580,7 +1600,7 @@ ErrorHandler:
     Kill TestFilePath
 End Function
 
-Private Function BuildXlsOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTableSelection) As String
+Private Function BuildXlsOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTblSel) As String
     Dim FolderPath As String
     Dim FileName As String
     
@@ -1590,7 +1610,7 @@ Private Function BuildXlsOutputFilePath(ByVal OutputFolder As String, ByVal Sele
     BuildXlsOutputFilePath = FolderPath & FileName
 End Function
 
-Private Function BuildXlsxOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTableSelection) As String
+Private Function BuildXlsxOutputFilePath(ByVal OutputFolder As String, ByVal Selection As clsExportTblSel) As String
     Dim FolderPath As String
     Dim FileName As String
     
@@ -1684,7 +1704,7 @@ Private Function AdoXlsValueLiteral(ByVal Value As Variant) As String
     AdoXlsValueLiteral = "'" & TextValue & "'"
 End Function
 
-Private Function BuildXlsCreateTableSql(ByVal SheetName As String, ByVal Selection As clsExportTableSelection) As String
+Private Function BuildXlsCreateTableSql(ByVal SheetName As String, ByVal Selection As clsExportTblSel) As String
     Dim i As Long
     Dim SqlText As String
     Dim ColumnDefs As String
@@ -1709,7 +1729,7 @@ End Function
 
 Private Function BuildXlsInsertSql( _
     ByVal SheetName As String, _
-    ByVal Selection As clsExportTableSelection, _
+    ByVal Selection As clsExportTblSel, _
     ByVal Rs As ADODB.Recordset) As String
     
     Dim i As Long
@@ -1740,7 +1760,7 @@ End Function
 Private Function WriteRecordsetToXlsWithAdo( _
     ByVal Rs As ADODB.Recordset, _
     ByVal FilePath As String, _
-    ByVal Selection As clsExportTableSelection) As Long
+    ByVal Selection As clsExportTblSel) As Long
     
     On Error GoTo ErrorHandler
     
@@ -1794,7 +1814,7 @@ ErrorHandler:
               "Failed to write XLS file [" & FilePath & "]. " & Err.Description
 End Function
 
-Private Function ExportTableToXlsWithAdo(ByVal Selection As clsExportTableSelection, ByVal OutputFolder As String) As Long
+Private Function ExportTableToXlsWithAdo(ByVal Selection As clsExportTblSel, ByVal OutputFolder As String) As Long
     On Error GoTo ErrorHandler
     
     Dim Conn As ADODB.Connection
@@ -1851,14 +1871,14 @@ End Function
 Private Function WriteRecordsetToXlsxWithAutomation( _
     ByVal Rs As ADODB.Recordset, _
     ByVal FilePath As String, _
-    ByVal Selection As clsExportTableSelection, _
+    ByVal Selection As clsExportTblSel, _
     ByVal TotalRows As Long) As Long
     
     On Error GoTo ErrorHandler
     
     Dim ExcelApp As Object
-    Dim Workbook As Object
-    Dim Worksheet As Object
+    Dim WorkBook As Object
+    Dim WorkSheet As Object
     Dim RowIndex As Long
     Dim ColIndex As Long
     Dim FieldName As String
@@ -1871,16 +1891,16 @@ Private Function WriteRecordsetToXlsxWithAutomation( _
 '    ExcelApp.Visible = False
 '    ExcelApp.DisplayAlerts = False
     
-    Set Workbook = ExcelApp.Workbooks.Add
-    Set Worksheet = Workbook.Worksheets(1)
+    Set WorkBook = ExcelApp.Workbooks.Add
+    Set WorkSheet = WorkBook.Worksheets(1)
     
-    Worksheet.Name = SheetName
+    WorkSheet.Name = SheetName
     
     ' Header row
     For ColIndex = 1 To Selection.SelectedFields.Count
         FieldName = CStr(Selection.SelectedFields(ColIndex))
-        Worksheet.Cells(1, ColIndex).Value = FieldName
-        Worksheet.Cells(1, ColIndex).Font.Bold = True
+        WorkSheet.Cells(1, ColIndex).Value = FieldName
+        WorkSheet.Cells(1, ColIndex).Font.Bold = True
     Next ColIndex
     
     RowIndex = 2
@@ -1896,9 +1916,9 @@ Private Function WriteRecordsetToXlsxWithAutomation( _
             FieldName = CStr(Selection.SelectedFields(ColIndex))
             
             If IsNull(Rs.Fields(FieldName).Value) Then
-                Worksheet.Cells(RowIndex, ColIndex).Value = ""
+                WorkSheet.Cells(RowIndex, ColIndex).Value = ""
             Else
-                Worksheet.Cells(RowIndex, ColIndex).Value = Rs.Fields(FieldName).Value
+                WorkSheet.Cells(RowIndex, ColIndex).Value = Rs.Fields(FieldName).Value
             End If
         Next ColIndex
         
@@ -1913,15 +1933,15 @@ Private Function WriteRecordsetToXlsxWithAutomation( _
         Rs.MoveNext
     Loop
     
-    Worksheet.Columns.AutoFit
+    WorkSheet.Columns.AutoFit
     
-    Workbook.SaveAs FilePath, 51   ' 51 = xlOpenXMLWorkbook (.xlsx)
-    Workbook.Close False
+    WorkBook.SaveAs FilePath, 51   ' 51 = xlOpenXMLWorkbook (.xlsx)
+    WorkBook.Close False
     
     ExcelApp.Quit
     
-    Set Worksheet = Nothing
-    Set Workbook = Nothing
+    Set WorkSheet = Nothing
+    Set WorkBook = Nothing
     Set ExcelApp = Nothing
     
     WriteRecordsetToXlsxWithAutomation = RowCount
@@ -1930,18 +1950,18 @@ Private Function WriteRecordsetToXlsxWithAutomation( _
 ErrorHandler:
     On Error Resume Next
     
-    If Not Workbook Is Nothing Then Workbook.Close False
+    If Not WorkBook Is Nothing Then WorkBook.Close False
     If Not ExcelApp Is Nothing Then ExcelApp.Quit
     
-    Set Worksheet = Nothing
-    Set Workbook = Nothing
+    Set WorkSheet = Nothing
+    Set WorkBook = Nothing
     Set ExcelApp = Nothing
     
     Err.Raise vbObjectError + 5301, "frmExportSqlToExcel.WriteRecordsetToXlsxWithAutomation", _
               "Failed to write XLSX file [" & FilePath & "]. " & Err.Description
 End Function
 
-Private Function ExportTableToXlsxWithAutomation(ByVal Selection As clsExportTableSelection, ByVal OutputFolder As String) As Long
+Private Function ExportTableToXlsxWithAutomation(ByVal Selection As clsExportTblSel, ByVal OutputFolder As String) As Long
     On Error GoTo ErrorHandler
     
     Dim Conn As ADODB.Connection
@@ -2039,7 +2059,7 @@ Private Sub UpdateExportRowProgress( _
     End If
 End Sub
 
-Private Function GetExportTableRowCount(ByVal Selection As clsExportTableSelection) As Long
+Private Function GetExportTableRowCount(ByVal Selection As clsExportTblSel) As Long
     On Error GoTo ErrorHandler
     
     Dim Conn As ADODB.Connection

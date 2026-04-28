@@ -970,6 +970,62 @@ ErrorHandler:
            Err.Number & " - " & Err.Description, vbCritical, APP_NAME
 End Sub
 
+Private Sub Form_QueryUnload(Cancel As Integer, UnloadMode As Integer)
+    On Error GoTo ErrorHandler
+    
+    If Not CloseToolForms() Then
+        Cancel = True
+    End If
+    
+    Exit Sub
+
+ErrorHandler:
+    Cancel = True
+    MsgBox "Unable to close all tool forms." & vbCrLf & _
+           Err.Number & " - " & Err.Description, vbExclamation, APP_NAME
+End Sub
+
+Private Function CloseToolForms() As Boolean
+    On Error GoTo ErrorHandler
+    
+    CloseToolForms = False
+    
+    If IsFormLoaded("frmImportExcelToSql") Then
+        Unload frmImportExcelToSql
+        
+        If IsFormLoaded("frmImportExcelToSql") Then
+            Exit Function
+        End If
+    End If
+    
+    If IsFormLoaded("frmExportSqlToExcel") Then
+        Unload frmExportSqlToExcel
+        
+        If IsFormLoaded("frmExportSqlToExcel") Then
+            Exit Function
+        End If
+    End If
+    
+    CloseToolForms = True
+    Exit Function
+
+ErrorHandler:
+    CloseToolForms = False
+End Function
+
+Private Function IsFormLoaded(ByVal FormName As String) As Boolean
+    Dim f As Form
+    
+    For Each f In Forms
+        If StrComp(f.Name, FormName, vbTextCompare) = 0 Then
+            IsFormLoaded = True
+            Exit Function
+        End If
+    Next f
+    
+    IsFormLoaded = False
+End Function
+
 Private Sub txtSearchDatabase_Change()
     If mSuppressUiEvents Then Exit Sub
     

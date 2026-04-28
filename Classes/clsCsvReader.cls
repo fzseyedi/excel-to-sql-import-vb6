@@ -85,6 +85,7 @@ Public Function LoadHeaders(ByVal FilePath As String) As Collection
     End If
     
     HeaderLine = CStr(Lines(1))
+    mDelimiter = DetectDelimiterFromLine(HeaderLine)
     Set Values = ParseCsvLine(HeaderLine)
     
     For i = 1 To Values.Count
@@ -400,4 +401,59 @@ Private Function RemoveUnicodeBom(ByVal TextValue As String) As String
     End If
     
     RemoveUnicodeBom = TextValue
+End Function
+
+Private Function DetectDelimiterFromLine(ByVal LineText As String) As String
+    Dim CommaCount As Long
+    Dim SemicolonCount As Long
+    Dim TabCount As Long
+    
+    CommaCount = CountDelimiterOutsideQuotes(LineText, ",")
+    SemicolonCount = CountDelimiterOutsideQuotes(LineText, ";")
+    TabCount = CountDelimiterOutsideQuotes(LineText, vbTab)
+    
+    If SemicolonCount >= CommaCount And SemicolonCount >= TabCount And SemicolonCount > 0 Then
+        DetectDelimiterFromLine = ";"
+    ElseIf TabCount >= CommaCount And TabCount > 0 Then
+        DetectDelimiterFromLine = vbTab
+    Else
+        DetectDelimiterFromLine = ","
+    End If
+End Function
+
+Private Function CountDelimiterOutsideQuotes(ByVal LineText As String, ByVal DelimiterText As String) As Long
+    Dim i As Long
+    Dim ch As String
+    Dim InQuotes As Boolean
+    Dim NextChar As String
+    
+    InQuotes = False
+    
+    i = 1
+    Do While i <= Len(LineText)
+        ch = Mid$(LineText, i, 1)
+        
+        If ch = """" Then
+            If InQuotes Then
+                If i < Len(LineText) Then
+                    NextChar = Mid$(LineText, i + 1, 1)
+                    
+                    If NextChar = """" Then
+                        i = i + 1
+                    Else
+                        InQuotes = False
+                    End If
+                Else
+                    InQuotes = False
+                End If
+            Else
+                InQuotes = True
+            End If
+        
+        ElseIf ch = DelimiterText And Not InQuotes Then
+            CountDelimiterOutsideQuotes = CountDelimiterOutsideQuotes + 1
+        End If
+        
+        i = i + 1
+    Loop
 End Function
