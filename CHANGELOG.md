@@ -11,6 +11,8 @@
 - Added CSV preview loading.
 - Added CSV row import using the existing mapping, validation, staging, and final import pipeline.
 - Added CSV-aware import logging.
+- Added UTF-8 BOM support for CSV import.
+- Added automatic CSV delimiter detection for comma, semicolon, and tab-delimited files.
 
 ### Changed
 
@@ -27,6 +29,8 @@
 
 - CSV import uses the same mapping, validation, staging, transaction, logging, progress, and cancel workflow as Excel import.
 - CSV files are expected to use the first row as headers.
+- CSV import automatically detects common delimiters such as comma, semicolon, and tab.
+- CSV files saved as UTF-8 with BOM are supported for Persian and other Unicode text.
 
 ## [1.2.0] - 2026-04-27
 

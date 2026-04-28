@@ -14,9 +14,15 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Private mDelimiter As String
+Private mEncodingMode As String
+
+Private Const CSV_ENCODING_AUTO As String = "AUTO"
+Private Const CSV_ENCODING_UTF8 As String = "UTF-8"
+Private Const CSV_ENCODING_ANSI As String = "ANSI"
 
 Private Sub Class_Initialize()
     mDelimiter = ","
+    mEncodingMode = CSV_ENCODING_AUTO
 End Sub
 
 Public Property Get Delimiter() As String
@@ -30,6 +36,36 @@ Public Property Let Delimiter(ByVal Value As String)
         mDelimiter = Left$(Value, 1)
     End If
 End Property
+
+Private Function HasUtf8Bom(ByVal FilePath As String) As Boolean
+    On Error GoTo ErrorHandler
+    
+    Dim FileNo As Integer
+    Dim b1 As Byte
+    Dim b2 As Byte
+    Dim b3 As Byte
+    
+    If Len(Dir$(FilePath)) = 0 Then Exit Function
+    If FileLen(FilePath) < 3 Then Exit Function
+    
+    FileNo = FreeFile
+    
+    Open FilePath For Binary Access Read As #FileNo
+    
+    Get #FileNo, 1, b1
+    Get #FileNo, 2, b2
+    Get #FileNo, 3, b3
+    
+    Close #FileNo
+    
+    HasUtf8Bom = (b1 = &HEF And b2 = &HBB And b3 = &HBF)
+    Exit Function
+
+ErrorHandler:
+    On Error Resume Next
+    If FileNo > 0 Then Close #FileNo
+    HasUtf8Bom = False
+End Function
 
 Public Function LoadHeaders(ByVal FilePath As String) As Collection
     On Error GoTo ErrorHandler
@@ -186,6 +222,50 @@ Private Function ReadAllLines(ByVal FilePath As String) As Collection
     On Error GoTo ErrorHandler
     
     Dim Result As Collection
+    Dim FileText As String
+    Dim Lines() As String
+    Dim i As Long
+    
+    Set Result = New Collection
+    
+    Select Case mEncodingMode
+        Case CSV_ENCODING_UTF8
+            FileText = ReadTextFileUtf8(FilePath)
+        
+        Case CSV_ENCODING_ANSI
+            Set ReadAllLines = ReadAllLinesAnsi(FilePath)
+            Exit Function
+        
+        Case Else
+            If HasUtf8Bom(FilePath) Then
+                FileText = ReadTextFileUtf8(FilePath)
+            Else
+                Set ReadAllLines = ReadAllLinesAnsi(FilePath)
+                Exit Function
+            End If
+    End Select
+    
+    FileText = RemoveUnicodeBom(FileText)
+    FileText = Replace(FileText, vbCrLf, vbLf)
+    FileText = Replace(FileText, vbCr, vbLf)
+    
+    Lines = Split(FileText, vbLf)
+    
+    For i = LBound(Lines) To UBound(Lines)
+        Result.Add Lines(i)
+    Next i
+    
+    Set ReadAllLines = Result
+    Exit Function
+
+ErrorHandler:
+    Err.Raise Err.Number, "clsCsvReader.ReadAllLines", Err.Description
+End Function
+
+Private Function ReadAllLinesAnsi(ByVal FilePath As String) As Collection
+    On Error GoTo ErrorHandler
+    
+    Dim Result As Collection
     Dim FileNo As Integer
     Dim LineText As String
     
@@ -202,14 +282,14 @@ Private Function ReadAllLines(ByVal FilePath As String) As Collection
     
     Close #FileNo
     
-    Set ReadAllLines = Result
+    Set ReadAllLinesAnsi = Result
     Exit Function
 
 ErrorHandler:
     On Error Resume Next
     If FileNo > 0 Then Close #FileNo
     
-    Err.Raise Err.Number, "clsCsvReader.ReadAllLines", Err.Description
+    Err.Raise Err.Number, "clsCsvReader.ReadAllLinesAnsi", Err.Description
 End Function
 
 Private Function ParseCsvLine(ByVal LineText As String) As Collection
@@ -262,4 +342,62 @@ Private Function ParseCsvLine(ByVal LineText As String) As Collection
     Result.Add CurrentValue
     
     Set ParseCsvLine = Result
+End Function
+
+Public Property Get EncodingMode() As String
+    EncodingMode = mEncodingMode
+End Property
+
+Public Property Let EncodingMode(ByVal Value As String)
+    Value = UCase$(Trim$(Value))
+    
+    Select Case Value
+        Case CSV_ENCODING_UTF8
+            mEncodingMode = CSV_ENCODING_UTF8
+        
+        Case CSV_ENCODING_ANSI
+            mEncodingMode = CSV_ENCODING_ANSI
+        
+        Case Else
+            mEncodingMode = CSV_ENCODING_AUTO
+    End Select
+End Property
+
+Private Function ReadTextFileUtf8(ByVal FilePath As String) As String
+    On Error GoTo ErrorHandler
+    
+    Dim Stream As Object
+    
+    Set Stream = CreateObject("ADODB.Stream")
+    
+    Stream.Type = 2        ' adTypeText
+    Stream.Charset = "utf-8"
+    Stream.Open
+    Stream.LoadFromFile FilePath
+    
+    ReadTextFileUtf8 = Stream.ReadText
+    
+    Stream.Close
+    Set Stream = Nothing
+    Exit Function
+
+ErrorHandler:
+    On Error Resume Next
+    If Not Stream Is Nothing Then
+        If Stream.State = 1 Then Stream.Close
+    End If
+    Set Stream = Nothing
+    
+    Err.Raise Err.Number, "clsCsvReader.ReadTextFileUtf8", Err.Description
+End Function
+
+Private Function RemoveUnicodeBom(ByVal TextValue As String) As String
+    If Len(TextValue) > 0 Then
+        If AscW(Left$(TextValue, 1)) = &HFEFF Then
+            RemoveUnicodeBom = Mid$(TextValue, 2)
+            Exit Function
+        End If
+    End If
+    
+    RemoveUnicodeBom = TextValue
 End Function
